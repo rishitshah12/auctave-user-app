@@ -1,25 +1,148 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';z
-import { getAuth, signInWithCustomToken, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, getDocs, onSnapshot } from 'firebase/firestore';
-import { Search, Star, Clock, MapPin, Building, Package, Truck, List, User, LogOut, Plus, ChevronLeft, ChevronRight, ChevronDown, Menu, X, Bot, Send, CheckCircle, TrendingUp, SlidersHorizontal, Shirt, BadgePercent, ThumbsUp, BrainCircuit, MessageSquare, ClipboardCopy, FileText, Briefcase, DollarSign, Users, GanttChartSquare, LayoutDashboard, Filter, Check, MoreHorizontal, Info, Settings, LifeBuoy, History, Edit, Anchor, Ship, Warehouse, PackageCheck, Award, Globe, PieChart as PieChartIcon, Flame, PlayCircle, BarChart as BarChartIcon, FileQuestion, ClipboardCheck, ChevronsLeft, ChevronsRight, Trash2, Tag, Weight, Palette, Box, Map } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Pie, Cell, PieChart } from 'recharts';
+import React, { useState, useEffect, useRef, useMemo, FC, ReactNode } from 'react';
+import { initializeApp, FirebaseApp } from 'firebase/app';
+import { getAnalytics, Analytics } from "firebase/analytics";
+import {
+    getAuth,
+    signInWithCustomToken,
+    signInAnonymously,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    GoogleAuthProvider,
+    signInWithPopup,
+    User
+} from 'firebase/auth';
+import {
+    getFirestore,
+    doc,
+    setDoc,
+    getDoc,
+    collection,
+    addDoc,
+    query,
+    where,
+    getDocs,
+    onSnapshot,
+    Firestore
+} from 'firebase/firestore';
+import {
+    Search, Star, Clock, MapPin, Building, Package, Truck, List, User as UserIcon, LogOut, Plus, ChevronLeft,
+    ChevronRight, ChevronDown, Menu, X, Bot, Send, CheckCircle, TrendingUp, SlidersHorizontal, Shirt,
+    BadgePercent, ThumbsUp, BrainCircuit, MessageSquare, ClipboardCopy, FileText, Briefcase, DollarSign,
+    Users, GanttChartSquare, LayoutDashboard, Filter, Check, MoreHorizontal, Info, Settings, LifeBuoy,
+    History, Edit, Anchor, Ship, Warehouse, PackageCheck, Award, Globe, PieChart as PieChartIcon, Flame,
+    PlayCircle, BarChart as BarChartIcon, FileQuestion, ClipboardCheck, ChevronsLeft, ChevronsRight, Trash2,
+    Tag, Weight, Palette, Box, Map as MapIcon
+} from 'lucide-react';
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Pie, Cell, PieChart
+} from 'recharts';
+
+// --- Type Definitions ---
+interface FirebaseConfig {
+    apiKey: string;
+    authDomain: string;
+    projectId: string;
+    storageBucket: string;
+    messagingSenderId: string;
+    appId: string;
+    measurementId: string;
+}
+
+interface UserProfile {
+    name: string;
+    companyName: string;
+    phone: string;
+    email: string;
+    country: string;
+    jobRole: string;
+    categorySpecialization: string;
+    yearlyEstRevenue: string;
+}
+
+interface OrderFormData {
+    category: string;
+    fabricQuality: string;
+    weightGSM: string;
+    styleOption: string;
+    qty: string;
+    targetPrice: string;
+    shippingDest: string;
+    packagingReqs: string;
+    labelingReqs: string;
+}
+
+interface MachineSlot {
+    machineType: string;
+    availableSlots: number;
+    totalSlots: number;
+    nextAvailable: string;
+}
+
+interface Factory {
+    id: string;
+    name: string;
+    specialties: string[];
+    rating: number;
+    turnaround: string;
+    offer: string | null;
+    imageUrl: string;
+    location: string;
+    tags: string[];
+    description: string;
+    minimumOrderQuantity: number;
+    certifications: string[];
+    machineSlots: MachineSlot[];
+}
+
+interface QuoteRequest {
+    id: string;
+    factory: {
+        id: string;
+        name: string;
+        location: string;
+        imageUrl: string;
+    };
+    order: OrderFormData;
+    status: 'Pending' | 'Responded' | 'Accepted' | 'Declined';
+    submittedAt: string;
+    userId: string;
+    files?: string[];
+}
+
+interface ToastState {
+    show: boolean;
+    message: string;
+    type: 'success' | 'error';
+}
+
+declare global {
+    interface Window {
+        showToast: (message: string, type?: 'success' | 'error') => void;
+    }
+    const __initial_auth_token: string | undefined;
+    const __app_id: string | undefined;
+}
 
 // --- Firebase Initialization ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCBzA20CJ7ZUNpRywgeZE0BhjoXn_gkp-A",
-  authDomain: "auctave-user-crm.firebaseapp.com",
-  projectId: "auctave-user-crm",
-  storageBucket: "auctave-user-crm.firebasestorage.app",
-  messagingSenderId: "402176147974",
-  appId: "1:402176147974:web:26416d0a2682f45ce87987",
-  measurementId: "G-H909ZJLHP3"
+const firebaseConfig: FirebaseConfig = {
+    apiKey: "AIzaSyCBzA20CJ7ZUNpRywgeZE0BhjoXn_gkp-A",
+    authDomain: "auctave-user-crm.firebaseapp.com",
+    projectId: "auctave-user-crm",
+    storageBucket: "auctave-user-crm.firebasestorage.app",
+    messagingSenderId: "402176147974",
+    appId: "1:402176147974:web:26416d0a2682f45ce87987",
+    measurementId: "G-H909ZJLHP3"
 };
 
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const app: FirebaseApp = initializeApp(firebaseConfig);
+const analytics: Analytics = getAnalytics(app);
+const auth = getAuth(app);
+const db: Firestore = getFirestore(app);
+
 // --- Helper Functions ---
-const copyToClipboard = (text, successMessage = 'Copied to clipboard!') => {
+const copyToClipboard = (text: string, successMessage: string = 'Copied to clipboard!') => {
     const textArea = document.createElement("textarea");
     textArea.value = text;
     textArea.style.position = "fixed";
@@ -28,7 +151,7 @@ const copyToClipboard = (text, successMessage = 'Copied to clipboard!') => {
     textArea.focus();
     textArea.select();
     try {
-        const successful = document.execCommand('copy');
+        document.execCommand('copy');
         if (window.showToast) window.showToast(successMessage);
         else alert(successMessage);
     } catch (err) {
@@ -40,55 +163,55 @@ const copyToClipboard = (text, successMessage = 'Copied to clipboard!') => {
 };
 
 // --- Main App Component ---
-const App = () => {
+const App: FC = () => {
     // --- State Management ---
-    const [currentPage, setCurrentPage] = useState('login');
-    const [user, setUser] = useState(null);
-    const [userProfile, setUserProfile] = useState(null);
-    const [isAuthReady, setIsAuthReady] = useState(false);
-    const [isProfileLoading, setIsProfileLoading] = useState(false);
-    const [authError, setAuthError] = useState('');
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-    const [pageKey, setPageKey] = useState(0);
+    const [currentPage, setCurrentPage] = useState<string>('login');
+    const [user, setUser] = useState<User | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
+    const [isProfileLoading, setIsProfileLoading] = useState<boolean>(false);
+    const [authError, setAuthError] = useState<string>('');
+    const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+    const [toast, setToast] = useState<ToastState>({ show: false, message: '', type: 'success' });
+    const [pageKey, setPageKey] = useState<number>(0);
 
     // --- App Logic & Data States ---
-    const [orderFormData, setOrderFormData] = useState({
+    const [orderFormData, setOrderFormData] = useState<OrderFormData>({
         category: 'T-shirt', fabricQuality: '100% Cotton', weightGSM: '180', styleOption: 'Crew Neck, Short Sleeve', qty: '5000', targetPrice: '4.50', shippingDest: 'Los Angeles, USA', packagingReqs: 'Individually folded and poly-bagged', labelingReqs: 'Custom neck labels'
     });
-    const [uploadedFiles, setUploadedFiles] = useState([]);
-    const [suggestedFactories, setSuggestedFactories] = useState([]);
-    const [selectedFactory, setSelectedFactory] = useState(null);
-    const [selectedGarmentCategory, setSelectedGarmentCategory] = useState('All');
-    const [quoteRequests, setQuoteRequests] = useState([]);
-    const [selectedQuote, setSelectedQuote] = useState(null);
+    const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+    const [suggestedFactories, setSuggestedFactories] = useState<Factory[]>([]);
+    const [selectedFactory, setSelectedFactory] = useState<Factory | null>(null);
+    const [selectedGarmentCategory, setSelectedGarmentCategory] = useState<string>('All');
+    const [quoteRequests, setQuoteRequests] = useState<QuoteRequest[]>([]);
+    const [selectedQuote, setSelectedQuote] = useState<QuoteRequest | null>(null);
 
     // --- Gemini (AI) Feature States ---
-    const [contractBrief, setContractBrief] = useState('');
-    const [optimizationSuggestions, setOptimizationSuggestions] = useState('');
-    const [outreachEmail, setOutreachEmail] = useState('');
-    const [marketTrends, setMarketTrends] = useState('');
-    const [negotiationTips, setNegotiationTips] = useState('');
-    const [isLoadingBrief, setIsLoadingBrief] = useState(false);
-    const [isLoadingOptimizations, setIsLoadingOptimizations] = useState(false);
-    const [isLoadingEmail, setIsLoadingEmail] = useState(false);
-    const [isLoadingTrends, setIsLoadingTrends] = useState(false);
-    const [isLoadingNegotiation, setIsLoadingNegotiation] = useState(false);
+    const [contractBrief, setContractBrief] = useState<string>('');
+    const [optimizationSuggestions, setOptimizationSuggestions] = useState<string>('');
+    const [outreachEmail, setOutreachEmail] = useState<string>('');
+    const [marketTrends, setMarketTrends] = useState<string>('');
+    const [negotiationTips, setNegotiationTips] = useState<string>('');
+    const [isLoadingBrief, setIsLoadingBrief] = useState<boolean>(false);
+    const [isLoadingOptimizations, setIsLoadingOptimizations] = useState<boolean>(false);
+    const [isLoadingEmail, setIsLoadingEmail] = useState<boolean>(false);
+    const [isLoadingTrends, setIsLoadingTrends] = useState<boolean>(false);
+    const [isLoadingNegotiation, setIsLoadingNegotiation] = useState<boolean>(false);
 
     // --- Global Functions ---
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-    const showToast = (message, type = 'success') => {
+    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ show: true, message, type });
         setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
     };
-    const handleSetCurrentPage = (page, data = null) => {
+    const handleSetCurrentPage = (page: string, data: any = null) => {
         setPageKey(prevKey => prevKey + 1);
         if (page === 'quoteRequest') {
-            setSelectedFactory(data);
+            setSelectedFactory(data as Factory);
         }
         if (page === 'quoteDetail') {
-            setSelectedQuote(data);
+            setSelectedQuote(data as QuoteRequest);
         }
         setCurrentPage(page);
     };
@@ -141,14 +264,14 @@ const App = () => {
         setAuthError('');
         if (!email || !password) { setAuthError("Email and password cannot be empty."); return; }
         try { await createUserWithEmailAndPassword(auth, email, password); }
-        catch (error) { setAuthError(error.message); }
+        catch (error) { setAuthError((error as Error).message); }
     };
 
     const handleEmailSignIn = async (email, password) => {
         setAuthError('');
         if (!email || !password) { setAuthError("Email and password cannot be empty."); return; }
         try { await signInWithEmailAndPassword(auth, email, password); }
-        catch (error) { setAuthError(error.message); }
+        catch (error) { setAuthError((error as Error).message); }
     };
 
     const handleGoogleSignIn = async () => {
@@ -157,41 +280,41 @@ const App = () => {
         try {
             await signInWithPopup(auth, provider);
         } catch (error) {
-            setAuthError(error.message);
+            setAuthError((error as Error).message);
         }
     };
 
     const handleSignOut = async () => {
-        try { await signOut(auth); } catch (error) { setAuthError(error.message); }
+        try { await signOut(auth); } catch (error) { setAuthError((error as Error).message); }
     };
 
-    const fetchUserProfile = async (uid) => {
+    const fetchUserProfile = async (uid: string) => {
         setIsProfileLoading(true);
         try {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const userDocRef = doc(db, `artifacts/${appId}/users/${uid}/profile`, 'buyerProfile');
             const docSnap = await getDoc(userDocRef);
-            setUserProfile(docSnap.exists() ? docSnap.data() : null);
+            setUserProfile(docSnap.exists() ? docSnap.data() as UserProfile : null);
         } catch (error) { console.error("Error fetching user profile:", error); }
         finally { setIsProfileLoading(false); }
     };
 
-    const saveUserProfile = async (profileData) => {
+    const saveUserProfile = async (profileData: Partial<UserProfile>) => {
         if (!user) { setAuthError("No user logged in to save profile."); return; }
         setIsProfileLoading(true);
         try {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/profile`, 'buyerProfile');
             await setDoc(userDocRef, { ...profileData, email: profileData.email || user.email }, { merge: true });
-            setUserProfile({ ...profileData, email: profileData.email || user.email });
+            setUserProfile({ ...userProfile, ...profileData, email: profileData.email || user.email } as UserProfile);
             handleSetCurrentPage('sourcing');
             showToast('Profile saved successfully!');
-        } catch (error) { setAuthError("Failed to save profile: " + error.message); }
+        } catch (error) { setAuthError("Failed to save profile: " + (error as Error).message); }
         finally { setIsProfileLoading(false); }
     };
 
     // --- Quote Request Functions ---
-    const submitQuoteRequest = async (quoteData) => {
+    const submitQuoteRequest = async (quoteData: Omit<QuoteRequest, 'id' | 'status' | 'submittedAt' | 'userId'>) => {
         if (!user) {
             showToast('You must be logged in to request a quote.', 'error');
             return;
@@ -213,14 +336,14 @@ const App = () => {
         }
     };
 
-    const fetchQuoteRequests = (uid) => {
+    const fetchQuoteRequests = (uid: string) => {
         if (!uid) return;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const quotesQuery = query(collection(db, `artifacts/${appId}/users/${uid}/quotes`));
         const unsubscribe = onSnapshot(quotesQuery, (querySnapshot) => {
-            const quotes = [];
+            const quotes: QuoteRequest[] = [];
             querySnapshot.forEach((doc) => {
-                quotes.push({ id: doc.id, ...doc.data() });
+                quotes.push({ id: doc.id, ...doc.data() } as QuoteRequest);
             });
             setQuoteRequests(quotes);
         }, (error) => {
@@ -231,7 +354,7 @@ const App = () => {
     };
 
     // --- Gemini API Call ---
-    const callGeminiAPI = async (prompt) => {
+    const callGeminiAPI = async (prompt: string): Promise<string> => {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
         const apiKey = ""; // Provided by Canvas
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
@@ -249,7 +372,7 @@ const App = () => {
     };
 
     // --- App Feature Functions ---
-    const allFactories = useMemo(() => [
+    const allFactories: Factory[] = useMemo(() => [
         { id: 'F001', name: 'AU Global Garment Solutions', specialties: ['T-shirt', 'Polo Shirt', 'Hoodies'], rating: 4.8, turnaround: '25-35 days', offer: '10% OFF', imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=2864&auto=format&fit=crop', location: 'Dhaka, Bangladesh', tags: ['Prime', 'Tech Enabled', 'Sustainable'], description: 'Leading, fully-integrated knit apparel manufacturer in Bangladesh.', minimumOrderQuantity: 1000, certifications: ['Sedex', 'Oeko-Tex Standard 100', 'BCI'], machineSlots: [ { machineType: 'Single Needle Lock Stitch', availableSlots: 50, totalSlots: 60, nextAvailable: '2025-07-15' }, { machineType: 'Overlock Machine', availableSlots: 35, totalSlots: 40, nextAvailable: '2025-07-20' } ] },
         { id: 'F002', name: 'AU Precision Textiles Inc.', specialties: ['T-shirt', 'Jeans'], rating: 4.6, turnaround: '30-40 days', offer: null, imageUrl: 'https://images.unsplash.com/photo-1523381294911-8d3cead13475?q=80&w=2940&auto=format&fit=crop', location: 'Hanoi, Vietnam', tags: ['Tech Enabled'], description: 'High-volume T-shirt and denim production with modern machinery.', minimumOrderQuantity: 2000, certifications: ['ISO 9001'], machineSlots: [ { machineType: 'Denim Weaving Loom', availableSlots: 15, totalSlots: 20, nextAvailable: '2025-08-01' }, { machineType: 'Automatic Pocket Setter', availableSlots: 10, totalSlots: 10, nextAvailable: '2025-08-05' } ] },
         { id: 'F003', name: 'AU Innovate Apparel Co.', specialties: ['Hoodies', 'Jackets'], rating: 4.9, turnaround: '20-30 days', offer: 'FREE SAMPLES', imageUrl: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?q=80&w=2872&auto=format&fit=crop', location: 'Mumbai, India', tags: ['Prime', 'Fast Turnaround'], description: 'Innovative solutions for outerwear manufacturing with fast turnaround.', minimumOrderQuantity: 500, certifications: ['WRAP', 'Sedex'], machineSlots: [ { machineType: 'Heavy Duty Sewing Machine', availableSlots: 25, totalSlots: 30, nextAvailable: '2025-07-10' } ] },
@@ -258,7 +381,7 @@ const App = () => {
         { id: 'F006', name: 'AU Tiruppur Knits', specialties: ['T-shirt', 'Polo Shirt'], rating: 4.7, turnaround: '20-30 days', offer: '5% First Order', imageUrl: 'https://images.unsplash.com/photo-1618517351639-a86b993468a7?q=80&w=2940&auto=format&fit=crop', location: 'Tiruppur, India', tags: ['Sustainable', 'Prime'], description: 'King of knitwear in the dollar town of India, specializing in high-quality cotton T-shirts.', minimumOrderQuantity: 1000, certifications: ['Oeko-Tex Standard 100', 'BCI'], machineSlots: [ { machineType: 'Circular Knitting Machine', availableSlots: 40, totalSlots: 50, nextAvailable: '2025-07-22' } ] },
     ], []);
 
-    const handleSubmitOrderForm = (submittedData, files) => {
+    const handleSubmitOrderForm = (submittedData: OrderFormData, files: File[]) => {
         setOrderFormData(submittedData);
         setUploadedFiles(files);
         const matchingFactories = allFactories.filter(f => f.specialties.includes(submittedData.category));
@@ -266,30 +389,30 @@ const App = () => {
         handleSetCurrentPage('factorySuggestions');
     };
 
-    const handleSelectFactory = (factory) => {
+    const handleSelectFactory = (factory: Factory) => {
         setSelectedFactory(factory);
         setContractBrief(''); setOutreachEmail(''); setOptimizationSuggestions(''); setNegotiationTips('');
         handleSetCurrentPage('factoryDetail');
     };
 
     // --- Gemini Feature Functions ---
-    const generateContractBrief = async () => { setIsLoadingBrief(true); const prompt = `Generate a concise, professional contract brief for a garment manufacturing request with these specs: Category: ${orderFormData.category}, Fabric: ${orderFormData.fabricQuality}, Weight: ${orderFormData.weightGSM} GSM, Style: ${orderFormData.styleOption}, Quantity: ${orderFormData.qty} units. The brief should be suitable for an initial inquiry to ${selectedFactory.name}.`; try { setContractBrief(await callGeminiAPI(prompt)); } catch (error) { showToast('Error generating brief: ' + error.message, 'error'); } finally { setIsLoadingBrief(false); } };
-    const suggestOptimizations = async () => { setIsLoadingOptimizations(true); const prompt = `For a garment order (${orderFormData.category}, ${orderFormData.fabricQuality}, ${orderFormData.weightGSM} GSM), suggest material or process optimizations for cost-efficiency, sustainability, or quality, keeping in mind we are contacting ${selectedFactory.name} in ${selectedFactory.location}. Format as a bulleted list.`; try { setOptimizationSuggestions(await callGeminiAPI(prompt)); } catch (error) { showToast('Error suggesting optimizations: ' + error.message, 'error'); } finally { setIsLoadingOptimizations(false); } };
-    const generateOutreachEmail = async () => { if (!contractBrief || !selectedFactory || !userProfile) { showToast('Please generate a brief first.', 'error'); return; } setIsLoadingEmail(true); const prompt = `Draft a professional outreach email from ${userProfile.name} of ${userProfile.companyName} to ${selectedFactory.name}. The email should introduce the company and the order, referencing the attached contract brief. Keep it concise and aim to start a conversation. The contract brief is as follows:\n\n---\n${contractBrief}\n---`; try { setOutreachEmail(await callGeminiAPI(prompt)); } catch (error) { showToast('Error drafting email: ' + error.message, 'error'); } finally { setIsLoadingEmail(false); } };
-    const getMarketTrends = async () => { setIsLoadingTrends(true); const date = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); const prompt = `As a fashion industry analyst, provide a brief summary of key market trends in global garment manufacturing for ${date}. Focus on sustainability, technology, and consumer behavior. Format as a bulleted list.`; try { setMarketTrends(await callGeminiAPI(prompt)); } catch (error) { setMarketTrends('Error fetching market trends: ' + error.message); showToast('Error fetching market trends.', 'error'); } finally { setIsLoadingTrends(false); } };
-    const getNegotiationTips = async () => { if (!selectedFactory) return; setIsLoadingNegotiation(true); const prompt = `As a sourcing expert, provide key negotiation points and cultural tips for an upcoming discussion with ${selectedFactory.name} in ${selectedFactory.location} regarding an order of ${orderFormData.qty} ${orderFormData.category}s. Focus on pricing strategies, payment terms, and quality assurance questions. Format as a bulleted list with bold headings.`; try { setNegotiationTips(await callGeminiAPI(prompt)); } catch(error) { setNegotiationTips('Error fetching negotiation tips: ' + error.message); showToast('Error fetching negotiation tips.', 'error'); } finally { setIsLoadingNegotiation(false); } };
+    const generateContractBrief = async () => { setIsLoadingBrief(true); const prompt = `Generate a concise, professional contract brief for a garment manufacturing request with these specs: Category: ${orderFormData.category}, Fabric: ${orderFormData.fabricQuality}, Weight: ${orderFormData.weightGSM} GSM, Style: ${orderFormData.styleOption}, Quantity: ${orderFormData.qty} units. The brief should be suitable for an initial inquiry to ${selectedFactory.name}.`; try { setContractBrief(await callGeminiAPI(prompt)); } catch (error) { showToast('Error generating brief: ' + (error as Error).message, 'error'); } finally { setIsLoadingBrief(false); } };
+    const suggestOptimizations = async () => { setIsLoadingOptimizations(true); const prompt = `For a garment order (${orderFormData.category}, ${orderFormData.fabricQuality}, ${orderFormData.weightGSM} GSM), suggest material or process optimizations for cost-efficiency, sustainability, or quality, keeping in mind we are contacting ${selectedFactory.name} in ${selectedFactory.location}. Format as a bulleted list.`; try { setOptimizationSuggestions(await callGeminiAPI(prompt)); } catch (error) { showToast('Error suggesting optimizations: ' + (error as Error).message, 'error'); } finally { setIsLoadingOptimizations(false); } };
+    const generateOutreachEmail = async () => { if (!contractBrief || !selectedFactory || !userProfile) { showToast('Please generate a brief first.', 'error'); return; } setIsLoadingEmail(true); const prompt = `Draft a professional outreach email from ${userProfile.name} of ${userProfile.companyName} to ${selectedFactory.name}. The email should introduce the company and the order, referencing the attached contract brief. Keep it concise and aim to start a conversation. The contract brief is as follows:\n\n---\n${contractBrief}\n---`; try { setOutreachEmail(await callGeminiAPI(prompt)); } catch (error) { showToast('Error drafting email: ' + (error as Error).message, 'error'); } finally { setIsLoadingEmail(false); } };
+    const getMarketTrends = async () => { setIsLoadingTrends(true); const date = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); const prompt = `As a fashion industry analyst, provide a brief summary of key market trends in global garment manufacturing for ${date}. Focus on sustainability, technology, and consumer behavior. Format as a bulleted list.`; try { setMarketTrends(await callGeminiAPI(prompt)); } catch (error) { setMarketTrends('Error fetching market trends: ' + (error as Error).message); showToast('Error fetching market trends.', 'error'); } finally { setIsLoadingTrends(false); } };
+    const getNegotiationTips = async () => { if (!selectedFactory) return; setIsLoadingNegotiation(true); const prompt = `As a sourcing expert, provide key negotiation points and cultural tips for an upcoming discussion with ${selectedFactory.name} in ${selectedFactory.location} regarding an order of ${orderFormData.qty} ${orderFormData.category}s. Focus on pricing strategies, payment terms, and quality assurance questions. Format as a bulleted list with bold headings.`; try { setNegotiationTips(await callGeminiAPI(prompt)); } catch(error) { setNegotiationTips('Error fetching negotiation tips: ' + (error as Error).message); showToast('Error fetching negotiation tips.', 'error'); } finally { setIsLoadingNegotiation(false); } };
 
     // --- UI Components ---
-    const Toast = ({ message, type, show }) => ( <div className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg text-white transition-transform duration-300 ${show ? 'translate-x-0' : 'translate-x-[110%]'} ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`} style={{ zIndex: 1000 }}><div className="flex items-center"><CheckCircle className="mr-2"/> {message}</div></div> );
-    
-    const SideMenu = () => {
+    const Toast: FC<{ message: string; type: 'success' | 'error'; show: boolean }> = ({ message, type, show }) => ( <div className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg text-white transition-transform duration-300 ${show ? 'translate-x-0' : 'translate-x-[110%]'} ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`} style={{ zIndex: 1000 }}><div className="flex items-center"><CheckCircle className="mr-2"/> {message}</div></div> );
+
+    const SideMenu: FC = () => {
         const menuItems = [
             { name: 'Sourcing', page: 'sourcing', icon: <Search className="h-5 w-5" /> },
             { name: 'My Quotes', page: 'myQuotes', icon: <FileQuestion className="h-5 w-5" /> },
             { name: 'CRM Portal', page: 'crm', icon: <List className="h-5 w-5" /> },
             { name: 'Order Tracking', page: 'tracking', icon: <Truck className="h-5 w-5" /> },
             { name: 'Place Order', page: 'orderForm', icon: <Plus className="h-5 w-5" /> },
-            { name: 'Profile', page: 'profile', icon: <User className="h-5 w-5" /> },
+            { name: 'Profile', page: 'profile', icon: <UserIcon className="h-5 w-5" /> },
             { name: 'Settings', page: 'settings', icon: <Settings className="h-5 w-5" /> },
             { name: "What's Trending", page: 'trending', icon: <Flame className="h-5 w-5" /> },
         ];
@@ -323,34 +446,34 @@ const App = () => {
         </>);
     };
 
-    const BottomNavBar = () => {
-      const navItems = [
-        { name: 'Sourcing', page: 'sourcing', icon: <Search /> },
-        { name: 'My Quotes', page: 'myQuotes', icon: <FileQuestion /> },
-        { name: 'Orders', page: 'crm', icon: <List /> },
-        { name: 'Tracking', page: 'tracking', icon: <Truck /> },
-        { name: 'Trending', page: 'trending', icon: <Flame /> },
-      ];
-      return (
-        <div className="fixed bottom-0 left-0 right-0 h-20 md:hidden z-40">
-            <div className="absolute bottom-0 left-0 right-0 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] h-16">
-                <div className="flex justify-around items-center h-full">
-                    {navItems.map(item => (
-                        <button key={item.name} onClick={() => handleSetCurrentPage(item.page)} className={`flex flex-col items-center justify-center space-y-1 w-1/5 ${currentPage === item.page ? 'text-purple-600' : 'text-gray-500'}`}>
-                            {item.icon}
-                            <span className="text-xs font-medium">{item.name}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-            <button onClick={() => handleSetCurrentPage('orderForm')} className="absolute bottom-8 left-1/2 -translate-x-1/2 w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-lg transform transition-transform hover:scale-110">
-                <Plus size={32}/>
-            </button>
-        </div>
-      );
+    const BottomNavBar: FC = () => {
+        const navItems = [
+          { name: 'Sourcing', page: 'sourcing', icon: <Search /> },
+          { name: 'My Quotes', page: 'myQuotes', icon: <FileQuestion /> },
+          { name: 'Orders', page: 'crm', icon: <List /> },
+          { name: 'Tracking', page: 'tracking', icon: <Truck /> },
+          { name: 'Trending', page: 'trending', icon: <Flame /> },
+        ];
+        return (
+          <div className="fixed bottom-0 left-0 right-0 h-20 md:hidden z-40">
+              <div className="absolute bottom-0 left-0 right-0 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] h-16">
+                  <div className="flex justify-around items-center h-full">
+                      {navItems.map(item => (
+                          <button key={item.name} onClick={() => handleSetCurrentPage(item.page)} className={`flex flex-col items-center justify-center space-y-1 w-1/5 ${currentPage === item.page ? 'text-purple-600' : 'text-gray-500'}`}>
+                              {item.icon}
+                              <span className="text-xs font-medium">{item.name}</span>
+                          </button>
+                      ))}
+                  </div>
+              </div>
+              <button onClick={() => handleSetCurrentPage('orderForm')} className="absolute bottom-8 left-1/2 -translate-x-1/2 w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-lg transform transition-transform hover:scale-110">
+                  <Plus size={32}/>
+              </button>
+          </div>
+        );
     }
 
-    const MainLayout = ({ children, pageKey }) => (
+    const MainLayout: FC<{ children: ReactNode; pageKey: number }> = ({ children, pageKey }) => (
         <div className="flex min-h-screen bg-gray-100 font-inter">
             <div className="hidden md:flex"><SideMenu /></div>
             <main className="flex-1 flex flex-col overflow-hidden">
@@ -362,14 +485,14 @@ const App = () => {
         </div>
     );
 
-    const LoginPage = () => {
+    const LoginPage: FC = () => {
         const [email, setEmail] = useState('');
         const [password, setPassword] = useState('');
         return ( <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-4 font-inter"> <div className="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-md text-center"> <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome to Auctave</h2> <p className="text-gray-500 mb-6">Your Garment Sourcing Partner</p> {authError && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{authError}</div>} <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition" /> <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition" /> <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"> <button onClick={() => handleEmailSignIn(email, password)} className="w-full p-3 text-white rounded-lg font-semibold bg-purple-600 hover:bg-purple-700 transition duration-150 ease-in-out shadow-md"> Sign In </button> <button onClick={() => handleEmailSignUp(email, password)} className="w-full p-3 text-purple-600 rounded-lg font-semibold bg-purple-100 hover:bg-purple-200 transition duration-150 ease-in-out shadow-md"> Sign Up </button> </div> <div className="relative flex py-2 items-center"> <div className="flex-grow border-t border-gray-300"></div> <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span> <div className="flex-grow border-t border-gray-300"></div> </div> <button onClick={handleGoogleSignIn} className="w-full p-3 mt-2 flex items-center justify-center bg-white border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition duration-150 ease-in-out shadow-sm"> <svg className="w-5 h-5 mr-2" viewBox="0 0 48 48"><path fill="#4285F4" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#34A853" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l5.657,5.657C40.046,36.64,44,31.1,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FBBC05" d="M9.916,28.421c-0.303-0.92-0.465-1.897-0.465-2.921s0.162-2.001,0.465-2.921l-5.657-5.657C2.353,19.252,2,21.556,2,24s0.353,4.748,1.259,6.626L9.916,28.421z"></path><path fill="#EA4335" d="M24,48c5.268,0,10.046-1.947,13.416-5.239l-5.657-5.657C30.041,38.223,27.217,39.3,24,39.3c-3.413,0-6.425-1.823-8.084-4.571l-5.657,5.657C12.016,44.38,17.555,48,24,48z"></path><path fill="none" d="M0,0h48v48H0V0z"></path></svg> Sign in with Google </button> </div> </div> );
     };
 
-    const ProfilePage = () => {
-        const [profileData, setProfileData] = useState({
+    const ProfilePage: FC = () => {
+        const [profileData, setProfileData] = useState<Partial<UserProfile>>({
             name: userProfile?.name || user?.displayName || '',
             companyName: userProfile?.companyName || '',
             phone: userProfile?.phone || '',
@@ -382,11 +505,11 @@ const App = () => {
         const countries = ["Afghanistan","India","United States of America","China","Bangladesh", "Vietnam", "Turkey", "Portugal"];
         const jobRoles = ["Owner/Founder", "CEO/President", "Sourcing Manager", "Designer"];
         const revenueRanges = ["<$1M", "$1M - $5M", "$5M - $10M", "$10M+"];
-        const handleProfileChange = (e) => {
+        const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             const { name, value } = e.target;
             setProfileData(prevData => ({ ...prevData, [name]: value }));
         };
-        const handleSaveProfile = async (e) => {
+        const handleSaveProfile = async (e: React.FormEvent) => {
             e.preventDefault();
             if (!profileData.name || !profileData.companyName || !profileData.phone || !profileData.email) {
                 showToast("Please fill all required fields.", "error");
@@ -397,7 +520,7 @@ const App = () => {
         return ( <MainLayout pageKey={pageKey}> <div className="max-w-2xl mx-auto"> <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">{userProfile?.name ? 'Update Your Profile' : 'Create Your Buyer Profile'}</h2> <p className="text-center text-gray-500 mb-6">Fields marked with * are required.</p> {authError && <p className="text-red-500 mb-4">{authError}</p>} <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-6"> <div> <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label> <input type="text" id="name" name="name" value={profileData.name} onChange={handleProfileChange} required className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" /> </div> <div> <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">Company Name <span className="text-red-500">*</span></label> <input type="text" id="companyName" name="companyName" value={profileData.companyName} onChange={handleProfileChange} required className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" /> </div> <div className="md:col-span-2"> <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label> <input type="email" id="email" name="email" value={profileData.email} onChange={handleProfileChange} required className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" /> </div> <div> <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone <span className="text-red-500">*</span></label> <input type="tel" id="phone" name="phone" value={profileData.phone} onChange={handleProfileChange} required className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" /> </div> <div> <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">Country</label> <select id="country" name="country" value={profileData.country} onChange={handleProfileChange} className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"> <option value="">Select a country</option> {countries.map(country => (<option key={country} value={country}>{country}</option>))} </select> </div> <div> <label htmlFor="jobRole" className="block text-sm font-medium text-gray-700 mb-1">Job Role</label> <select id="jobRole" name="jobRole" value={profileData.jobRole} onChange={handleProfileChange} className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"> <option value="">Select a role</option> {jobRoles.map(role => (<option key={role} value={role}>{role}</option>))} </select> </div> <div> <label htmlFor="categorySpecialization" className="block text-sm font-medium text-gray-700 mb-1">Category Specialization</label> <input type="text" id="categorySpecialization" name="categorySpecialization" placeholder="e.g., Activewear, Denim" value={profileData.categorySpecialization} onChange={handleProfileChange} className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" /> </div> <div> <label htmlFor="yearlyEstRevenue" className="block text-sm font-medium text-gray-700 mb-1">Est. Yearly Revenue (USD)</label> <select id="yearlyEstRevenue" name="yearlyEstRevenue" value={profileData.yearlyEstRevenue} onChange={handleProfileChange} className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"> <option value="">Select a revenue range</option> {revenueRanges.map(range => (<option key={range} value={range}>{range}</option>))} </select> </div> <div className="md:col-span-2 text-right mt-4"> <button type="submit" disabled={isProfileLoading} className="w-full md:w-auto px-6 py-3 text-white rounded-md font-semibold bg-purple-600 hover:bg-purple-700 transition shadow-md disabled:opacity-50"> {isProfileLoading ? 'Saving...' : 'Save Profile'} </button> </div> </form> </div> </div> </MainLayout> );
     };
 
-    const SettingsPage = () => {
+    const SettingsPage: FC = () => {
         const [location, setLocation] = useState(userProfile?.country || 'Your Location');
         const handleLocationSave = () => {
             showToast(`Location updated to ${location}`);
@@ -445,29 +568,29 @@ const App = () => {
         )
     }
 
-    const AiCard = React.memo(({ icon, title, children }) => ( <div className="bg-white p-6 rounded-xl shadow-lg h-full flex flex-col"> <div className="flex items-center text-xl font-bold text-gray-800 mb-4">{icon}{title}</div> {children} </div> ));
+    const AiCard: FC<{ icon: ReactNode; title: string; children: ReactNode }> = React.memo(({ icon, title, children }) => ( <div className="bg-white p-6 rounded-xl shadow-lg h-full flex flex-col"> <div className="flex items-center text-xl font-bold text-gray-800 mb-4">{icon}{title}</div> {children} </div> ));
 
-    const OrderFormPage = () => {
-        const [formState, setFormState] = useState({
+    const OrderFormPage: FC = () => {
+        const [formState, setFormState] = useState<OrderFormData>({
             category: 'T-shirt', qty: '5000', fabricQuality: '100% Cotton', weightGSM: '180',
             targetPrice: '4.50', shippingDest: 'Los Angeles, USA',
             packagingReqs: 'Individually folded and poly-bagged, 50 units per carton.',
             labelingReqs: 'Custom branded neck label and hang tags required.', styleOption: 'Crew neck, short sleeves'
         });
-        const [files, setFiles] = useState([]);
-        const fileInputRef = useRef(null);
-        const handleFormChange = (e) => { const { name, value } = e.target; setFormState(prev => ({ ...prev, [name]: value })); };
-        const handleFileChange = (e) => {
+        const [files, setFiles] = useState<File[]>([]);
+        const fileInputRef = useRef<HTMLInputElement>(null);
+        const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { const { name, value } = e.target; setFormState(prev => ({ ...prev, [name]: value })); };
+        const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             if (e.target.files) {
-                setFiles(prev => [...prev, ...Array.from(e.target.files)]);
+                setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
             }
         };
-        const removeFile = (fileName) => {
+        const removeFile = (fileName: string) => {
             setFiles(prev => prev.filter(f => f.name !== fileName));
         };
-        const onFormSubmit = (e) => { e.preventDefault(); handleSubmitOrderForm(formState, files); };
-        
-        const FormField = ({ icon, label, children }) => (
+        const onFormSubmit = (e: React.FormEvent) => { e.preventDefault(); handleSubmitOrderForm(formState, files); };
+
+        const FormField: FC<{ icon: ReactNode; label: string; children: ReactNode }> = ({ icon, label, children }) => (
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
                 <div className="relative">
@@ -507,7 +630,7 @@ const App = () => {
                                     </FormField>
                                 </div>
                             </fieldset>
-                            
+
                             <fieldset className="border-t pt-6">
                                 <legend className="text-lg font-semibold text-gray-700 mb-4">Specifications</legend>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -519,7 +642,7 @@ const App = () => {
                                     </FormField>
                                     <div className="md:col-span-2">
                                         <FormField label="Style Options / Tech Pack Details" icon={<Palette className="h-5 w-5 text-gray-400" />}>
-                                            <textarea name="styleOption" value={formState.styleOption} onChange={handleFormChange} rows="3" placeholder="e.g., Crew neck, specific pantone colors, embroidery details..." className="w-full pl-10 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                                            <textarea name="styleOption" value={formState.styleOption} onChange={handleFormChange} rows={3} placeholder="e.g., Crew neck, specific pantone colors, embroidery details..." className="w-full pl-10 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
                                         </FormField>
                                     </div>
                                 </div>
@@ -531,22 +654,22 @@ const App = () => {
                                     <FormField label="Target Price per Unit (USD)" icon={<DollarSign className="h-5 w-5 text-gray-400" />}>
                                         <input type="number" step="0.01" name="targetPrice" value={formState.targetPrice} onChange={handleFormChange} placeholder="e.g., 4.50" className="w-full pl-10 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
                                     </FormField>
-                                    <FormField label="Shipping Destination" icon={<Map className="h-5 w-5 text-gray-400" />}>
+                                    <FormField label="Shipping Destination" icon={<MapIcon className="h-5 w-5 text-gray-400" />}>
                                         <input type="text" name="shippingDest" value={formState.shippingDest} onChange={handleFormChange} placeholder="e.g., Los Angeles, USA" className="w-full pl-10 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
                                     </FormField>
                                     <div className="md:col-span-2">
                                         <FormField label="Packaging Requirements" icon={<Box className="h-5 w-5 text-gray-400" />}>
-                                            <textarea name="packagingReqs" value={formState.packagingReqs} onChange={handleFormChange} rows="4" className="w-full pl-10 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                                            <textarea name="packagingReqs" value={formState.packagingReqs} onChange={handleFormChange} rows={4} className="w-full pl-10 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
                                         </FormField>
                                     </div>
                                     <div className="md:col-span-2">
                                         <FormField label="Labeling Requirements" icon={<Tag className="h-5 w-5 text-gray-400" />}>
-                                            <textarea name="labelingReqs" value={formState.labelingReqs} onChange={handleFormChange} rows="4" className="w-full pl-10 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                                            <textarea name="labelingReqs" value={formState.labelingReqs} onChange={handleFormChange} rows={4} className="w-full pl-10 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
                                         </FormField>
                                     </div>
                                 </div>
                             </fieldset>
-                            
+
                             <fieldset className="border-t pt-6">
                                 <legend className="text-lg font-semibold text-gray-700 mb-4">Upload Documents</legend>
                                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
@@ -584,10 +707,10 @@ const App = () => {
         );
     };
 
-    const FactoryCard = React.memo(({ factory, onSelect, style }) => (
+    const FactoryCard: FC<{ factory: Factory; onSelect: () => void; style: React.CSSProperties }> = React.memo(({ factory, onSelect, style }) => (
         <div onClick={onSelect} style={style} className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col animate-card-enter">
             <div className="relative">
-                <img src={factory.imageUrl} alt={factory.name} className="h-48 w-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src=`https://placehold.co/600x400/e9d5ff/4c1d95?text=${factory.name}`; }} />
+                <img src={factory.imageUrl} alt={factory.name} className="h-48 w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).onerror = null; (e.target as HTMLImageElement).src=`https://placehold.co/600x400/e9d5ff/4c1d95?text=${factory.name}`; }} />
                 {factory.offer && <div className="absolute top-0 left-0 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-br-xl shadow-lg uppercase">{factory.offer}</div>}
             </div>
             <div className="p-4 flex flex-col flex-grow">
@@ -613,7 +736,7 @@ const App = () => {
         </div>
     ));
 
-    const FactorySuggestionsPage = () => (
+    const FactorySuggestionsPage: FC = () => (
         <MainLayout pageKey={pageKey}>
             <div className="space-y-6">
                 <div>
@@ -645,10 +768,10 @@ const App = () => {
         </MainLayout>
     );
 
-   const FactoryDetailPage = () => {
+   const FactoryDetailPage: FC = () => {
        if (!selectedFactory) return null;
-       const CertificationBadge = ({ cert }) => {
-           const certStyles = {
+       const CertificationBadge: FC<{ cert: string }> = ({ cert }) => {
+           const certStyles: { [key: string]: string } = {
                'Sedex': 'bg-blue-100 text-blue-800',
                'Oeko-Tex Standard 100': 'bg-green-100 text-green-800',
                'BCI': 'bg-yellow-100 text-yellow-800',
@@ -657,7 +780,7 @@ const App = () => {
            };
            return <span className={`text-sm font-semibold px-3 py-1 rounded-full ${certStyles[cert] || 'bg-gray-100 text-gray-800'}`}>{cert}</span>
        }
-       const MachineSlot = ({ slot }) => {
+       const MachineSlot: FC<{ slot: MachineSlot }> = ({ slot }) => {
            const usagePercentage = (slot.availableSlots / slot.totalSlots) * 100;
            return (
                <tr className="hover:bg-gray-50">
@@ -754,7 +877,7 @@ const App = () => {
        );
    };
 
-    const FactoryToolsPage = () => {
+    const FactoryToolsPage: FC = () => {
         if (!selectedFactory) {
             handleSetCurrentPage('sourcing');
             return null;
@@ -810,7 +933,7 @@ const App = () => {
         );
     };
 
-    const CRMPage = () => {
+    const CRMPage: FC = () => {
         const crmData = useMemo(() => ({
             "PO-2024-001": { customer: 'Acme Corp', product: '5000 Classic Tees', factoryId: 'F001', tasks: [ { id: 1, name: 'Sample Approval', responsible: 'Jane D.', plannedStartDate: '2025-11-01', plannedEndDate: '2025-11-05', actualStartDate: '2025-11-01', actualEndDate: '2025-11-04', status: 'COMPLETE', color: 'bg-purple-500', quantity: 10 }, { id: 2, name: 'Fabric Sourcing', responsible: 'Merch Team', plannedStartDate: '2025-11-03', plannedEndDate: '2025-11-10', actualStartDate: '2025-11-04', actualEndDate: '2025-11-09', status: 'COMPLETE', color: 'bg-blue-500', quantity: 5000 }, { id: 3, name: 'Cutting', responsible: 'Prod. Team', plannedStartDate: '2025-11-11', plannedEndDate: '2025-11-15', actualStartDate: '2025-11-11', actualEndDate: null, status: 'IN PROGRESS', color: 'bg-pink-500', quantity: 5000 }, { id: 4, name: 'Stitching', responsible: 'Prod. Team', plannedStartDate: '2025-11-16', plannedEndDate: '2025-11-25', actualStartDate: '2025-11-18', actualEndDate: null, status: 'IN PROGRESS', color: 'bg-orange-500', quantity: 2500 }, { id: 5, name: 'Quality Check', responsible: 'QA Team', plannedStartDate: '2025-11-26', plannedEndDate: '2025-11-28', actualStartDate: null, actualEndDate: null, status: 'TO DO', color: 'bg-green-500', quantity: 0 }, { id: 6, name: 'Packing & Shipping', responsible: 'Logistics', plannedStartDate: '2025-11-29', plannedEndDate: '2025-12-02', actualStartDate: null, actualEndDate: null, status: 'TO DO', color: 'bg-yellow-500', quantity: 0 }, ] },
             "PO-2024-002": { customer: 'Stark Industries', product: '10000 Hoodies', factoryId: 'F003', tasks: [ { id: 7, name: 'Fabric Sourcing', responsible: 'Merch Team', plannedStartDate: '2025-12-01', plannedEndDate: '2025-12-10', actualStartDate: '2025-12-02', actualEndDate: '2025-12-10', status: 'COMPLETE', color: 'bg-blue-500', quantity: 10000 }, { id: 8, name: 'Lab Dips', responsible: 'Jane D.', plannedStartDate: '2025-12-05', plannedEndDate: '2025-12-12', actualStartDate: '2025-12-06', actualEndDate: null, status: 'IN PROGRESS', color: 'bg-pink-500', quantity: 20 }, { id: 9, name: 'Production', responsible: 'Prod. Team', plannedStartDate: '2025-12-13', plannedEndDate: '2026-01-05', actualStartDate: null, actualEndDate: null, status: 'TO DO', color: 'bg-green-500', quantity: 0 }, ] },
@@ -842,10 +965,10 @@ const App = () => {
             }
         };
 
-        const MarkdownRenderer = ({ text }) => {
+        const MarkdownRenderer: FC<{ text: string }> = ({ text }) => {
             if (!text) return null;
             const lines = text.split('\n').map(line => line.trim()).filter(line => line);
-            const renderLine = (line) => {
+            const renderLine = (line: string) => {
                 if (line.startsWith('H3:')) return <h3 className="text-xl font-bold text-gray-800 mb-4">{line.substring(3)}</h3>;
                 if (line.startsWith('B:')) return <p className="font-semibold text-gray-700 mt-4 mb-1">{line.substring(2)}</p>;
                 if (line.startsWith('P:')) return <p className="text-gray-600">{line.substring(2)}</p>;
@@ -857,7 +980,7 @@ const App = () => {
             return ( <div className="space-y-1"> {lines.map((line, index) => <div key={index}>{renderLine(line)}</div>)} </div> );
         };
 
-        const AIOrderSummaryModal = () => (
+        const AIOrderSummaryModal: FC = () => (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4 animate-fade-in" onClick={() => setIsSummaryModalOpen(false)}>
                 <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl relative" onClick={e => e.stopPropagation()}>
                     <button onClick={() => setIsSummaryModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"> <X size={24} /> </button>
@@ -872,7 +995,7 @@ const App = () => {
             </div>
         );
 
-        const DashboardCard = ({ icon, title, value, colorClass }) => (
+        const DashboardCard: FC<{ icon: ReactNode; title: string; value: string | number; colorClass: string }> = ({ icon, title, value, colorClass }) => (
             <div className={`relative p-5 rounded-xl overflow-hidden bg-white shadow-sm border`}>
                 <div className="flex items-start justify-between">
                     <div>
@@ -886,9 +1009,9 @@ const App = () => {
             </div>
         );
 
-        const DashboardView = ({ tasks, orderKey, orderDetails }) => {
+        const DashboardView: FC<{ tasks: any[]; orderKey: string; orderDetails: any }> = ({ tasks, orderKey, orderDetails }) => {
             const statusData = useMemo(() => {
-                const statuses = { 'TO DO': 0, 'IN PROGRESS': 0, 'COMPLETE': 0 };
+                const statuses: { [key: string]: number } = { 'TO DO': 0, 'IN PROGRESS': 0, 'COMPLETE': 0 };
                 tasks.forEach(task => {
                     if(statuses[task.status] !== undefined) statuses[task.status]++;
                 });
@@ -945,11 +1068,11 @@ const App = () => {
             )
         };
 
-        const ListView = ({ tasks }) => {
+        const ListView: FC<{ tasks: any[] }> = ({ tasks }) => {
             const completedTasks = tasks.filter(t => t.status === 'COMPLETE');
             const todoTasks = tasks.filter(t => t.status === 'TO DO');
             const inProgressTasks = tasks.filter(t => t.status === 'IN PROGRESS');
-            const calculateTotals = (tasks) => {
+            const calculateTotals = (tasks: any[]) => {
                 return tasks.reduce((acc, task) => {
                     acc.qty += task.quantity || 0;
                     return acc;
@@ -957,7 +1080,7 @@ const App = () => {
             }
             const totals = calculateTotals(completedTasks);
 
-            const TaskGroup = ({ title, tasks, showTotals, totalsData }) => {
+            const TaskGroup: FC<{ title: string; tasks: any[]; showTotals?: boolean; totalsData?: any }> = ({ title, tasks, showTotals, totalsData }) => {
                 const isCompletedGroup = title === 'COMPLETE';
                 const groupHeaderColor = isCompletedGroup ? 'text-green-600' : 'text-gray-600';
                 return (
@@ -1012,14 +1135,14 @@ const App = () => {
             );
         };
 
-        const BoardView = ({ tasks }) => {
-            const columns = {
+        const BoardView: FC<{ tasks: any[] }> = ({ tasks }) => {
+            const columns: { [key: string]: any[] } = {
                 'TO DO': tasks.filter(t => t.status === 'TO DO'),
                 'IN PROGRESS': tasks.filter(t => t.status === 'IN PROGRESS'),
                 'COMPLETE': tasks.filter(t => t.status === 'COMPLETE'),
             };
 
-            const TaskCard = ({ task }) => (
+            const TaskCard: FC<{ task: any }> = ({ task }) => (
                 <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm mb-3">
                     <p className="font-semibold text-sm text-gray-800">{task.name}</p>
                     <p className="text-xs text-gray-500 mt-1">Due: {task.plannedEndDate}</p>
@@ -1052,19 +1175,19 @@ const App = () => {
             )
         }
 
-        const GanttChartView = ({ tasks }) => {
-            const parseDate = (str) => new Date(str);
-            const diffDays = (date1, date2) => Math.ceil(Math.abs(date1 - date2) / (1000 * 60 * 60 * 24));
-            
+        const GanttChartView: FC<{ tasks: any[] }> = ({ tasks }) => {
+            const parseDate = (str: string) => new Date(str);
+            const diffDays = (date1: Date, date2: Date) => Math.ceil(Math.abs(date1.getTime() - date2.getTime()) / (1000 * 60 * 60 * 24));
+
             const { timelineStart, timelineEnd, totalDuration } = useMemo(() => {
                 if (!tasks || tasks.length === 0) {
                     const today = new Date();
-                    return { timelineStart: today, timelineEnd: new Date(today.setDate(today.getDate() + 30)), totalDuration: 30 };
+                    return { timelineStart: today, timelineEnd: new Date(new Date().setDate(today.getDate() + 30)), totalDuration: 30 };
                 }
                 const startDates = tasks.map(t => parseDate(t.plannedStartDate));
                 const endDates = tasks.map(t => parseDate(t.plannedEndDate));
-                const minDate = new Date(Math.min.apply(null, startDates));
-                const maxDate = new Date(Math.max.apply(null, endDates));
+                const minDate = new Date(Math.min.apply(null, startDates.map(d => d.getTime())));
+                const maxDate = new Date(Math.max.apply(null, endDates.map(d => d.getTime())));
                 minDate.setDate(minDate.getDate() - 2); // buffer
                 maxDate.setDate(maxDate.getDate() + 2); // buffer
                 return {
@@ -1075,7 +1198,7 @@ const App = () => {
             }, [tasks]);
 
             const timelineHeader = useMemo(() => {
-                const header = [];
+                const header: Date[] = [];
                 let current = new Date(timelineStart);
                 while(current <= timelineEnd) {
                     header.push(new Date(current));
@@ -1121,36 +1244,36 @@ const App = () => {
             )
         }
 
-        const TNAView = ({ tasks }) => {
-            const parseDate = (str) => str ? new Date(str) : null;
+        const TNAView: FC<{ tasks: any[] }> = ({ tasks }) => {
+            const parseDate = (str: string | null) => str ? new Date(str) : null;
             const today = new Date();
             today.setHours(0, 0, 0, 0); // Normalize today's date
 
-            const calculateDelay = (task) => {
+            const calculateDelay = (task: any) => {
                 const plannedEnd = parseDate(task.plannedEndDate);
                 if (!plannedEnd) return { days: 0, status: 'ontime' };
 
                 if (task.status === 'COMPLETE') {
                     const actualEnd = parseDate(task.actualEndDate);
                     if (!actualEnd) return { days: 0, status: 'ontime' };
-                    const delay = Math.ceil((actualEnd - plannedEnd) / (1000 * 60 * 60 * 24));
+                    const delay = Math.ceil((actualEnd.getTime() - plannedEnd.getTime()) / (1000 * 60 * 60 * 24));
                     return { days: delay, status: delay > 0 ? 'delayed' : 'ontime' };
                 } else {
                     if (today > plannedEnd) {
-                        const delay = Math.ceil((today - plannedEnd) / (1000 * 60 * 60 * 24));
+                        const delay = Math.ceil((today.getTime() - plannedEnd.getTime()) / (1000 * 60 * 60 * 24));
                         return { days: delay, status: 'at-risk' };
                     }
                 }
                 return { days: 0, status: 'ontime' };
             };
 
-            const getDelayColor = (status) => {
+            const getDelayColor = (status: string) => {
                 if (status === 'delayed') return 'text-red-600 font-semibold';
                 if (status === 'at-risk') return 'text-yellow-600 font-semibold';
                 return 'text-green-600 font-semibold';
             };
-            
-            const getStatusPill = (status) => {
+
+            const getStatusPill = (status: string) => {
                 const baseClasses = "px-2 inline-flex text-xs leading-5 font-semibold rounded-full";
                 switch(status) {
                     case 'COMPLETE': return `${baseClasses} bg-green-100 text-green-800`;
@@ -1194,7 +1317,7 @@ const App = () => {
             )
         };
 
-        const OrderDetailsView = ({ order }) => {
+        const OrderDetailsView: FC<{ order: any }> = ({ order }) => {
             const factory = allFactories.find(f => f.id === order.factoryId);
             return (
                 <div className="mt-6 space-y-6 animate-fade-in">
@@ -1308,8 +1431,8 @@ const App = () => {
         );
     };
 
-    const OrderTrackingPage = () => {
-        const trackingData = {
+    const OrderTrackingPage: FC = () => {
+        const trackingData: { [key: string]: any[] } = {
             "PO-2024-001": [ { status: 'In Production', date: 'June 15, 2025', isComplete: true, icon: <PackageCheck/> }, { status: 'Quality Checked', date: 'June 20, 2025', isComplete: true, icon: <CheckCircle/> }, { status: 'Transport to Origin Port', date: 'June 22, 2025', isComplete: true, icon: <Truck/> }, { status: 'In Transit', date: 'June 25, 2025', isComplete: false, isInProgress: true, icon: <Ship/> }, { status: 'Reached Destination Port', date: 'Est. July 10, 2025', isComplete: false, icon: <Anchor/> }, { status: 'Delivered', date: 'Est. July 12, 2025', isComplete: false, icon: <Warehouse/> }, ],
             "PO-2024-002": [ { status: 'In Production', date: 'June 18, 2025', isComplete: true, icon: <PackageCheck/> }, { status: 'Quality Checked', date: 'June 24, 2025', isComplete: false, isInProgress: true, icon: <CheckCircle/> }, { status: 'Transport to Origin Port', date: 'Est. June 26, 2025', isComplete: false, icon: <Truck/> }, { status: 'In Transit', date: 'Est. June 28, 2025', isComplete: false, icon: <Ship/> }, { status: 'Reached Destination Port', date: 'Est. July 15, 2025', isComplete: false, icon: <Anchor/> }, { status: 'Delivered', date: 'Est. July 17, 2025', isComplete: false, icon: <Warehouse/> }, ]
         };
@@ -1368,12 +1491,12 @@ const App = () => {
         );
     };
 
-    const AIChatSupport = () => {
+    const AIChatSupport: FC = () => {
         const [isOpen, setIsOpen] = useState(false);
-        const [messages, setMessages] = useState([]);
+        const [messages, setMessages] = useState<{ text: string; sender: 'ai' | 'user'; isFormatted?: boolean }[]>([]);
         const [input, setInput] = useState('');
         const [isLoading, setIsLoading] = useState(false);
-        const chatEndRef = useRef(null);
+        const chatEndRef = useRef<HTMLDivElement>(null);
 
         useEffect(() => {
             chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1395,7 +1518,7 @@ const App = () => {
             const prompt = `You are "Auctave Brain," a helpful AI assistant for a garment sourcing platform. Your two primary functions are: 1. Summarizing order tasks. 2. Providing a platform tutorial. First, analyze the user's question: "${input}". If the user's question seems to be a request for help, a tutorial, or asks "how to use" the platform, provide the following tutorial. Format it *exactly* like this, using the specified prefixes: H1:Welcome to Auctave!\nP:Here’s a quick guide to get you started:\nH2:Key Features:\nLI:**Sourcing:** Find factories using search and filters.\nLI:**CRM Portal:** Manage orders with Details, List, Board, and Gantt views.\nLI:**Order Tracking:** See a live timeline of your shipment.\nLI:**AI Tools:** Ask me to 'summarize my order' to get AI-powered insights!\n\nOTHERWISE, if the user is asking for a summary or about tasks, analyze the following order data and provide a summary of tasks that are "TO DO" (as "Tasks Not Started") and tasks that are "IN PROGRESS". Format your response *exactly* like this, using the specified prefixes: Order Data: Tasks Not Started: ${orderContext['PO-2024-001'].tasks.filter(t => t.status === 'TO DO').map(t => t.name).join(', ')}. Tasks In Progress: ${orderContext['PO-2024-001'].tasks.filter(t => t.status === 'IN PROGRESS').map(t => t.name).join(', ')}. Example Summary Format: H1:Tasks Not Started\nP:[Number] tasks were recently updated but haven't been started yet.\nP:Tasks involve final checks and packaging.\nH2:Top Tasks:\nLI:Quality Check, Packing & Shipping\nH1:Tasks In Progress\nP:[Number] in progress tasks were updated recently.\nP:Tasks involve core production processes.\nH2:Top Tasks:\nLI:Cutting, Stitching`;
 
             try {
-                let aiResponse;
+                let aiResponse: string;
                 if (isTutorialRequest) {
                     aiResponse = `H1:Welcome to Auctave!\nP:Here’s a quick guide to get you started:\nH2:Key Features:\nLI:**Sourcing:** Find factories using search and filters.\nLI:**CRM Portal:** Manage orders with Details, List, Board, and Gantt views.\nLI:**Order Tracking:** See a live timeline of your shipment.\nLI:**AI Tools:** Ask me to 'summarize my order' to get AI-powered insights!`;
                 } else {
@@ -1409,9 +1532,9 @@ const App = () => {
             }
         };
 
-        const FormattedMessage = ({ text }) => {
+        const FormattedMessage: FC<{ text: string }> = ({ text }) => {
             const lines = text.split('\n').filter(line => line.trim() !== '');
-            const renderFormattedLine = (line) => {
+            const renderFormattedLine = (line: string) => {
                 const parts = line.split(/(\*\*.*?\*\*)/g);
                 return parts.map((part, i) =>
                     part.startsWith('**') && part.endsWith('**') ?
@@ -1512,14 +1635,14 @@ const App = () => {
     };
 
     // --- Sourcing Page (Main Dashboard) ---
-    const SourcingPage = () => {
+    const SourcingPage: FC = () => {
         const initialFilters = { rating: 0, maxMoq: 10000, tags: [], categories: [], location: '', certifications: [] };
         const [searchTerm, setSearchTerm] = useState('');
         const [filters, setFilters] = useState(initialFilters);
         const [showFilterPanel, setShowFilterPanel] = useState(false);
         const [isFiltering, setIsFiltering] = useState(false);
         const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-        const profileDropdownRef = useRef(null);
+        const profileDropdownRef = useRef<HTMLDivElement>(null);
 
         const garmentCategories = useMemo(() => ['T-shirt', 'Polo Shirt', 'Hoodies', 'Jeans', 'Jackets', 'Shirts', 'Casual Shirts', 'Trousers'], []);
         const allCertifications = useMemo(() => ['Sedex', 'Oeko-Tex Standard 100', 'BCI', 'WRAP', 'ISO 9001'], []);
@@ -1527,11 +1650,11 @@ const App = () => {
         const clearFilters = () => {
             setFilters(initialFilters);
         };
-        
+
         // Close profile dropdown on outside click
         useEffect(() => {
-            const handleClickOutside = (event) => {
-                if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+            const handleClickOutside = (event: MouseEvent) => {
+                if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
                     setIsProfileDropdownOpen(false);
                 }
             };
@@ -1572,7 +1695,7 @@ const App = () => {
 
         const filterChips = ["Fast Turnaround", "Sustainable", "Prime"];
 
-        const DashboardCard = ({ icon, title, value, colorClass }) => (
+        const DashboardCard: FC<{ icon: ReactNode; title: string; value: string | number; colorClass: string }> = ({ icon, title, value, colorClass }) => (
             <div className={`relative p-5 rounded-xl overflow-hidden bg-white shadow-md transition-transform hover:scale-105`}>
                 <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${colorClass}`}></div>
                 <div className="flex items-start justify-between">
@@ -1587,7 +1710,7 @@ const App = () => {
             </div>
         );
 
-        const Dashboard = () => {
+        const Dashboard: FC = () => {
             const dashboardData = {
                 activeOrders: 3,
                 unitsInProduction: '17,500',
@@ -1626,9 +1749,9 @@ const App = () => {
             );
         };
 
-        const CategoryCarousel = () => {
-            const scrollRef = useRef(null);
-            const scroll = (direction) => {
+        const CategoryCarousel: FC = () => {
+            const scrollRef = useRef<HTMLDivElement>(null);
+            const scroll = (direction: 'left' | 'right') => {
                 if (scrollRef.current) {
                     const { current } = scrollRef;
                     const scrollAmount = direction === 'left' ? -current.offsetWidth / 2 : current.offsetWidth / 2;
@@ -1657,7 +1780,7 @@ const App = () => {
                                                         src={cat.imageUrl}
                                                         alt={cat.name}
                                                         className="w-full h-full object-cover rounded-full"
-                                                        onError={(e) => { e.target.onerror = null; e.target.src=`https://placehold.co/80x80/e9d5ff/4c1d95?text=${cat.name}`; }}
+                                                        onError={(e) => { (e.target as HTMLImageElement).onerror = null; (e.target as HTMLImageElement).src=`https://placehold.co/80x80/e9d5ff/4c1d95?text=${cat.name}`; }}
                                                     />
                                                 ) : (
                                                     <div className="text-gray-600">
@@ -1679,7 +1802,7 @@ const App = () => {
             );
         };
 
-        const SkeletonCard = () => (
+        const SkeletonCard: FC = () => (
             <div className="bg-white rounded-2xl shadow-md overflow-hidden animate-pulse">
                 <div className="h-48 w-full bg-gray-300"></div>
                 <div className="p-4">
@@ -1690,7 +1813,7 @@ const App = () => {
             </div>
         );
 
-        const FilterPanel = () => (
+        const FilterPanel: FC = () => (
             <>
                 <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity ${showFilterPanel ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setShowFilterPanel(false)}></div>
                 <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl z-50 transform transition-transform duration-300 ${showFilterPanel ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -1760,7 +1883,7 @@ const App = () => {
             </>
         );
 
-        const ProfileDropdown = () => (
+        const ProfileDropdown: FC = () => (
             <div ref={profileDropdownRef} className="relative">
                 <button onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)} className="hidden md:flex w-12 h-12 rounded-full bg-purple-200 border-2 border-white items-center justify-center text-purple-700 font-bold text-xl shadow-md cursor-pointer">
                     {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : 'U'}
@@ -1768,7 +1891,7 @@ const App = () => {
                 {isProfileDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 animate-fade-in">
                         <button onClick={() => { handleSetCurrentPage('profile'); setIsProfileDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                            <User size={16} className="mr-2" /> My Profile
+                            <UserIcon size={16} className="mr-2" /> My Profile
                         </button>
                         <button onClick={() => { handleSignOut(); setIsProfileDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center">
                             <LogOut size={16} className="mr-2" /> Logout
@@ -1845,7 +1968,7 @@ const App = () => {
         );
     };
 
-    const TrendingPage = () => {
+    const TrendingPage: FC = () => {
         const trendBlogs = [
             { id: 1, title: 'The Rise of Sustainable Denim', category: 'Materials', author: 'Vogue Business', date: 'June 24, 2025', imageUrl: 'https://ninelondon.co.uk/cdn/shop/articles/Guide_on_Sustainable_Jeans-_The_Future_of_Ethical_Fashion.jpg?v=1742809387' },
             { id: 2, title: 'Utility Wear: Function Meets Fashion', category: 'Styles', author: 'Hypebeast', date: 'June 23, 2025', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT45WPOXDJhJUrtWtQCIhBDEBzdxfZG8wJmig&s' },
@@ -1857,9 +1980,9 @@ const App = () => {
             { id: 3, creator: '@denimqueen', views: '2.5M', videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4', thumbnail: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRmDXe8m1LiarHW_nFhOakVDDuaRichGrky-Q&s' },
             { id: 4, creator: '@modern.man', views: '750K', videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', thumbnail: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=300&h=500&auto=format&fit=crop' },
         ];
-        const [fullscreenVideo, setFullscreenVideo] = useState(null);
+        const [fullscreenVideo, setFullscreenVideo] = useState<string | null>(null);
 
-        const FullscreenVideoPlayer = ({ src, onClose }) => {
+        const FullscreenVideoPlayer: FC<{ src: string; onClose: () => void }> = ({ src, onClose }) => {
             if (!src) return null;
             return (
                 <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100]" onClick={onClose}>
@@ -1926,13 +2049,13 @@ const App = () => {
                         ))}
                     </div>
                 </section>
-                <FullscreenVideoPlayer src={fullscreenVideo} onClose={() => setFullscreenVideo(null)} />
+                {fullscreenVideo && <FullscreenVideoPlayer src={fullscreenVideo} onClose={() => setFullscreenVideo(null)} />}
             </MainLayout>
         )
     }
 
-    const MyQuotesPage = () => {
-        const getStatusColor = (status) => {
+    const MyQuotesPage: FC = () => {
+        const getStatusColor = (status: string) => {
             switch (status) {
                 case 'Pending': return 'bg-yellow-100 text-yellow-800';
                 case 'Responded': return 'bg-blue-100 text-blue-800';
@@ -1994,7 +2117,7 @@ const App = () => {
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-10">
+                                        <td colSpan={6} className="text-center py-10">
                                             <FileQuestion className="mx-auto h-12 w-12 text-gray-400" />
                                             <h3 className="mt-2 text-sm font-medium text-gray-900">No quote requests</h3>
                                             <p className="mt-1 text-sm text-gray-500">Get started by requesting a quote from a factory.</p>
@@ -2009,12 +2132,12 @@ const App = () => {
         );
     };
 
-    const QuoteRequestPage = () => {
+    const QuoteRequestPage: FC = () => {
         if (!selectedFactory) {
             handleSetCurrentPage('sourcing');
             return null;
         }
-        const handleQuoteSubmit = (e) => {
+        const handleQuoteSubmit = (e: React.FormEvent) => {
             e.preventDefault();
             const quoteData = {
                 factory: {
@@ -2087,7 +2210,7 @@ const App = () => {
         );
     };
 
-    const QuoteDetailPage = () => {
+    const QuoteDetailPage: FC = () => {
         if (!selectedQuote) {
             handleSetCurrentPage('myQuotes');
             return null;
@@ -2189,6 +2312,3 @@ const App = () => {
 };
 
 export default App;
-
-
-
